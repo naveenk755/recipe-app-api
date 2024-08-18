@@ -2,6 +2,7 @@ from django.test import SimpleTestCase
 
 from . import calc
 
+
 class CalsTests(SimpleTestCase):
 
     def test_add_numbers(self):

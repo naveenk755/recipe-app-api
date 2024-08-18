@@ -8,6 +8,7 @@ from django.db.utils import OperationalError
 
 import time
 
+
 class Command(BaseCommand):
     """Django command to wait for the database"""
 
@@ -18,7 +19,7 @@ class Command(BaseCommand):
             try:
                 self.check(databases=['default'])
                 db_up = True
-            except (Psycopg2OpError , OperationalError):
+            except (Psycopg2OpError, OperationalError):
                 self.stdout.write('Database Unavailable. Waiting for 1 sec...')
                 time.sleep(1)
 
