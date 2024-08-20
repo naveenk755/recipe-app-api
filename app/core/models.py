@@ -7,8 +7,10 @@ from django.contrib.auth.models import (
 
 
 class UserManager(BaseUserManager):
+    """Manager for managing User model for authentication"""
 
     def create_user(self, email, password=None, **extra_fields):
+        """Method for creating normal users"""
 
         if not email:
             raise ValueError('Email must not be empty')
@@ -20,6 +22,8 @@ class UserManager(BaseUserManager):
         return user
     
     def create_superuser(self, email, password):
+        """Method for creating a super user"""
+
         user = self.create_user(email=email, password=password)
 
         user.is_staff = True
@@ -28,6 +32,8 @@ class UserManager(BaseUserManager):
         return user
 
 class User(AbstractBaseUser, PermissionsMixin):
+    """User model for the application"""
+    
     email = models.EmailField(max_length=255, unique=True)
     name = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
