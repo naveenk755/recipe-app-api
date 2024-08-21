@@ -124,7 +124,7 @@ class PrivateRecipeApiTests(TestCase):
         payload = {
             'title': new_title
         }
-        
+
         res = self.client.patch(get_recipe_detail_url(recipe.id), payload)
         recipe.refresh_from_db()
         self.assertEqual(res.status_code, status.HTTP_200_OK)
@@ -143,7 +143,7 @@ class PrivateRecipeApiTests(TestCase):
         recipe = create_sample_recipe(user=self.user)
         payload = {'user': new_user.id}
 
-        res = self.client.patch(get_recipe_detail_url(recipe.id), payload)
+        self.client.patch(get_recipe_detail_url(recipe.id), payload)
 
         recipe.refresh_from_db()
         self.assertEqual(recipe.user, self.user)
@@ -156,7 +156,6 @@ class PrivateRecipeApiTests(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Recipe.objects.filter(id=recipe.id).exists())
-
 
     def test_delete_other_user_recipe(self):
         """Testing deletion of other user's recipe"""
