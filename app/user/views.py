@@ -10,11 +10,13 @@ class CreateUserView(generics.CreateAPIView):
 
     serializer_class = UserSerializer
 
+
 class CreateTokenView(ObtainAuthToken):
     """Create a new auth token for user."""
 
     serializer_class = AuthTokenSerializer
     renderer_classes = api_settings.DEFAULT_RENDERER_CLASSES
+
 
 class UpdateUserView(generics.RetrieveUpdateAPIView):
     """Update the user model of logged in user"""
