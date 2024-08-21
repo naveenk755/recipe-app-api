@@ -114,3 +114,59 @@ class PrivateRecipeApiTests(TestCase):
         for k, v in payload.items():
             self.assertEqual(getattr(recipe, k), v)
         self.assertEqual(recipe.user, self.user)
+
+    def test_partial_update(self):
+        """Testing partial field updates"""
+
+        recipe = create_sample_recipe(self.user)
+        new_title = 'New Test Title'
+        original_link = recipe.link
+        payload = {
+            'title': new_title
+        }
+        
+        res = self.client.patch(get_recipe_detail_url(recipe.id), payload)
+        recipe.refresh_from_db()
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(recipe.title, new_title)
+        self.assertEqual(recipe.link, original_link)
+        self.assertEqual(recipe.user, self.user)
+
+    def test_no_user_update(self):
+        """Testing recipe user should not get updated"""
+
+        new_user = get_user_model().objects.create_user(
+            email='user2@example.com',
+            password='password2'
+        )
+
+        recipe = create_sample_recipe(user=self.user)
+        payload = {'user': new_user.id}
+
+        res = self.client.patch(get_recipe_detail_url(recipe.id), payload)
+
+        recipe.refresh_from_db()
+        self.assertEqual(recipe.user, self.user)
+
+    def test_delete_recipe(self):
+        """Testing API to delete recipe"""
+
+        recipe = create_sample_recipe(self.user)
+        res = self.client.delete(get_recipe_detail_url(recipe.id))
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Recipe.objects.filter(id=recipe.id).exists())
+
+
+    def test_delete_other_user_recipe(self):
+        """Testing deletion of other user's recipe"""
+
+        new_user = get_user_model().objects.create_user(
+            email='user2@example.com',
+            password='password2'
+        )
+        recipe = create_sample_recipe(new_user)
+        res = self.client.delete(get_recipe_detail_url(recipe.id))
+
+        self.assertTrue(res.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(Recipe.objects.filter(id=recipe.id).exists())
