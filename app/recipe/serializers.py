@@ -7,5 +7,12 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Recipe
-        fields = ['id', 'title', 'description', 'price', 'link']
+        fields = ['id', 'title', 'price', 'link']
         read_only_fields = ['id']
+
+
+class RecipeDetailSerializer(RecipeSerializer):
+    """Serializer for Recipe Detail"""
+
+    class Meta(RecipeSerializer.Meta):
+        fields = RecipeSerializer.Meta.fields + ['description']

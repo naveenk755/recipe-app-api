@@ -9,10 +9,14 @@ from django.contrib.auth import get_user_model
 from core.models import Recipe
 
 from decimal import Decimal
-from recipe.serializers import RecipeSerializer
+from recipe.serializers import RecipeSerializer, RecipeDetailSerializer
 
 
 RECEIPE_URL = reverse('recipe:recipe-list')
+
+
+def get_recipe_detail_url(recipe_id):
+    return reverse('recipe:recipe-detail', args=[recipe_id])
 
 
 def create_sample_recipe(user, **params):
@@ -68,6 +72,7 @@ class PrivateRecipeApiTests(TestCase):
 
     def test_recipes_limit_to_user(self):
         """Testing recipe list is limited to authenticated user"""
+
         other_user = get_user_model().objects.create_user(
             email='test1@example.com',
             password='test1pass'
@@ -82,3 +87,12 @@ class PrivateRecipeApiTests(TestCase):
 
         self.assertEqual(res.data, serializer.data)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+    def test_recipe_detail_api(self):
+        """Testing API to fetch Recipe Details."""
+
+        recipe = create_sample_recipe(user=self.user)
+        res = self.client.get(get_recipe_detail_url(recipe_id=recipe.id))
+
+        serializer = RecipeDetailSerializer(recipe)
+        self.assertEqual(res.data, serializer.data)
