@@ -6,13 +6,20 @@ from rest_framework import status
 
 from django.contrib.auth import get_user_model
 
-from core.models import Recipe
+from core.models import Recipe, Tag
 
 from decimal import Decimal
 from recipe.serializers import RecipeSerializer, RecipeDetailSerializer
 
 
 RECEIPE_URL = reverse('recipe:recipe-list')
+
+
+def create_user(email='test@example.com', password='testpasswoed'):
+    return get_user_model().objects.create_user(
+        email=email,
+        password=password
+    )
 
 
 def get_recipe_detail_url(recipe_id):
@@ -49,10 +56,7 @@ class PrivateRecipeApiTests(TestCase):
     """Testing Private Recipe APIs."""
 
     def setUp(self):
-        self.user = get_user_model().objects.create_user(
-            email='test@example.com',
-            password='testpass'
-        )
+        self.user = create_user()
         self.client = APIClient()
         self.client.force_authenticate(self.user)
 
@@ -73,10 +77,7 @@ class PrivateRecipeApiTests(TestCase):
     def test_recipes_limit_to_user(self):
         """Testing recipe list is limited to authenticated user"""
 
-        other_user = get_user_model().objects.create_user(
-            email='test1@example.com',
-            password='test1pass'
-        )
+        other_user = create_user(email='otheruser@example.com')
 
         create_sample_recipe(user=self.user)
         create_sample_recipe(user=other_user)
@@ -135,10 +136,7 @@ class PrivateRecipeApiTests(TestCase):
     def test_no_user_update(self):
         """Testing recipe user should not get updated"""
 
-        new_user = get_user_model().objects.create_user(
-            email='user2@example.com',
-            password='password2'
-        )
+        new_user = create_user(email='newuser@example.com')
 
         recipe = create_sample_recipe(user=self.user)
         payload = {'user': new_user.id}
@@ -160,12 +158,57 @@ class PrivateRecipeApiTests(TestCase):
     def test_delete_other_user_recipe(self):
         """Testing deletion of other user's recipe"""
 
-        new_user = get_user_model().objects.create_user(
-            email='user2@example.com',
-            password='password2'
-        )
+        new_user = create_user(email='newuser@example.com')
         recipe = create_sample_recipe(new_user)
         res = self.client.delete(get_recipe_detail_url(recipe.id))
 
         self.assertTrue(res.status_code, status.HTTP_404_NOT_FOUND)
         self.assertTrue(Recipe.objects.filter(id=recipe.id).exists())
+
+    def test_create_recipe_with_new_tags(self):
+        """Testing creation of recipe with new tags."""
+
+        payload = {
+            'title': 'Test Title',
+            'price': Decimal(1.5),
+            'time_minutes': 20,
+            'description': 'Test Description',
+            'tags': [
+                {'name': 'Tag 1'},
+                {'name': 'Tag 2'}
+            ]
+        }
+
+        res = self.client.post(RECEIPE_URL, payload, format='json')
+        print(res.data)
+        recipes = Recipe.objects.filter(id=res.data['id'])
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(recipes.exists())
+        self.assertEqual(recipes[0].tags.count(), len(payload['tags']))
+
+    def test_create_recipe_with_old_tags(self):
+        """Testing creation of recipe with old tags."""
+
+        old_tag_name = 'Tag 1'
+        Tag.objects.create(user=self.user, name=old_tag_name)
+
+        payload = {
+            'title': 'Test Title',
+            'price': Decimal(1.5),
+            'time_minutes': 20,
+            'description': 'Test Description',
+            'tags': [
+                {'name': old_tag_name},
+                {'name': 'Tag 2'}
+            ]
+        }
+
+        res = self.client.post(RECEIPE_URL, payload, format='json')
+        print(res.data)
+        recipes = Recipe.objects.filter(id=res.data['id'])
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(recipes.exists())
+        self.assertEqual(Tag.objects.filter(
+            user=self.user, name=old_tag_name).count(), 1)
