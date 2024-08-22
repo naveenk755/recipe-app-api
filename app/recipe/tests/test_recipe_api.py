@@ -26,7 +26,7 @@ def get_recipe_detail_url(recipe_id):
     return reverse('recipe:recipe-detail', args=[recipe_id])
 
 
-def create_sample_recipe(user, **params):
+def create_sample_recipe(user, **params) -> Tag:
     """Create and return sample recipe"""
 
     defaults = {
@@ -180,7 +180,6 @@ class PrivateRecipeApiTests(TestCase):
         }
 
         res = self.client.post(RECEIPE_URL, payload, format='json')
-        print(res.data)
         recipes = Recipe.objects.filter(id=res.data['id'])
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
@@ -205,10 +204,62 @@ class PrivateRecipeApiTests(TestCase):
         }
 
         res = self.client.post(RECEIPE_URL, payload, format='json')
-        print(res.data)
         recipes = Recipe.objects.filter(id=res.data['id'])
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertTrue(recipes.exists())
         self.assertEqual(Tag.objects.filter(
             user=self.user, name=old_tag_name).count(), 1)
+
+    def test_update_tag_to_recipe(self):
+        """Testing update new tags to existing recipe."""
+
+        new_tag_name = 'lunch'
+        recipe = create_sample_recipe(user=self.user)
+        payload = {'tags': [{'name': new_tag_name}]}
+
+        res = self.client.patch(get_recipe_detail_url(
+            recipe.id), payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        final_tags = recipe.tags.all()
+        self.assertEqual(final_tags.count(), 1)
+        self.assertEqual(final_tags[0].name, new_tag_name)
+
+    def test_update_tags_list(self):
+        """Tesing list update on pushing new tag list"""
+
+        recipe = create_sample_recipe(self.user)
+        old_name = 'test tag'
+        old_tag = Tag.objects.create(user=self.user, name=old_name)
+        recipe.tags.add(old_tag)
+
+        new_tag_name = 'test tag'
+        payload = {'tags': [{
+            'name': new_tag_name
+        }]}
+
+        res = self.client.patch(get_recipe_detail_url(
+            recipe.id), payload, format='json')
+
+        final_tags = recipe.tags.all()
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(final_tags.count(), 1)
+        self.assertEqual(final_tags[0].name, new_tag_name)
+
+    def test_clear_tag(self):
+        """Testing clearing of tags"""
+
+        recipe = create_sample_recipe(user=self.user)
+        old_name = 'test tag'
+        old_tag = Tag.objects.create(user=self.user, name=old_name)
+        recipe.tags.add(old_tag)
+
+        payload = {'tags': []}
+
+        res = self.client.patch(get_recipe_detail_url(
+            recipe.id), payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(recipe.tags.all().count(), 0)
