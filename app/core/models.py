@@ -6,6 +6,17 @@ from django.contrib.auth.models import (
     PermissionsMixin
 )
 
+import uuid
+import os
+
+
+def recipe_image_file_path(instance, filename):
+    """generate file path for new recipe image."""
+    ext = os.path.splitext(filename)[1]
+    file_name = f'{uuid.uuid4()}{ext}'
+
+    return os.path.join('uploads', 'recipe', file_name)
+
 
 class UserManager(BaseUserManager):
     """Manager for managing User model for authentication"""
@@ -79,7 +90,9 @@ class Recipe(models.Model):
     price = models.DecimalField(max_digits=5, decimal_places=2)
     link = models.CharField(max_length=255, blank=True)
     tags = models.ManyToManyField(Tag, related_name='tags')
-    ingredients = models.ManyToManyField(Ingredient, related_name='ingredients')
+    ingredients = models.ManyToManyField(
+        Ingredient, related_name='ingredients')
+    image = models.ImageField(null=True, upload_to=recipe_image_file_path)
 
     def __str__(self) -> str:
         return self.title
