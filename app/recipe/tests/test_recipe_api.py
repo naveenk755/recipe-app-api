@@ -33,7 +33,7 @@ def get_recipe_detail_url(recipe_id):
     return reverse('recipe:recipe-detail', args=[recipe_id])
 
 
-def create_sample_recipe(user, **params) -> Tag:
+def create_sample_recipe(user, **params) -> Recipe:
     """Create and return sample recipe"""
 
     defaults = {

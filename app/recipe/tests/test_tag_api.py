@@ -5,8 +5,10 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework import status
 
-from core.models import Tag
+from core.models import Tag, Recipe
 from recipe.serializers import TagSerializer
+
+from decimal import Decimal
 
 TAG_URL = reverse('recipe:tag-list')
 
@@ -20,6 +22,21 @@ def create_user(email='test@example.com', password='testpass'):
         email=email,
         password=password
     )
+
+
+def create_sample_recipe(user, **params):
+    """Create and return sample recipe"""
+
+    defaults = {
+        'title': 'Sample Title',
+        'description': 'Sample Description',
+        'price': Decimal('10.12'),
+        'time_minutes': 22,
+        'link': 'http://example.com/recipe.pdf'
+    }
+
+    defaults.update(params)
+    return Recipe.objects.create(user=user, **defaults)
 
 
 class PublicTagApiTest(TestCase):
@@ -95,3 +112,38 @@ class PrivateTagApiTest(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Tag.objects.filter(id=tag.id).exists())
+
+    def test_filtered_tags(self):
+        """Testing filtered tags list."""
+
+        tag1 = Tag.objects.create(user=self.user, name='Tag1')
+        tag2 = Tag.objects.create(user=self.user, name='Tag2')
+
+        recipe = create_sample_recipe(user=self.user, title='recipe1')
+        recipe.tags.add(tag1)
+
+        s1 = TagSerializer(tag1)
+        s2 = TagSerializer(tag2)
+
+        res = self.client.get(TAG_URL, dict(assigned_only=1))
+
+        self.assertIn(s1.data, res.data)
+        self.assertNotIn(s2.data, res.data)
+
+    def test_filtered_tags_unique(self):
+        """Testing the filtered tags are unique"""
+
+        tag = Tag.objects.create(user=self.user, name='Tag1')
+        Tag.objects.create(user=self.user, name='Tag2')
+
+        recipe1 = create_sample_recipe(user=self.user, title='recipe1')
+        recipe2 = create_sample_recipe(user=self.user, title='recipe2')
+        recipe1.tags.add(tag)
+        recipe2.tags.add(tag)
+
+        s1 = TagSerializer(tag)
+
+        res = self.client.get(TAG_URL, dict(assigned_only=1))
+
+        self.assertEqual(len(res.data), 1)
+        self.assertIn(s1.data, res.data)

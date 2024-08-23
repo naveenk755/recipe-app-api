@@ -5,7 +5,10 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
 
-from core.models import Ingredient
+from core.models import Ingredient, Recipe
+from recipe import serializers
+
+from decimal import Decimal
 
 
 INGREDIENT_URL = reverse('recipe:ingredient-list')
@@ -20,6 +23,21 @@ def create_user(email='test@example.com', password='testpassword'):
         email=email,
         password=password
     )
+
+
+def create_sample_recipe(user, **params) -> Recipe:
+    """Create and return sample recipe"""
+
+    defaults = {
+        'title': 'Sample Title',
+        'description': 'Sample Description',
+        'price': Decimal('10.12'),
+        'time_minutes': 22,
+        'link': 'http://example.com/recipe.pdf'
+    }
+
+    defaults.update(params)
+    return Recipe.objects.create(user=user, **defaults)
 
 
 class PublicIngredientApiTest(TestCase):
@@ -98,3 +116,38 @@ class PrivateIngredientApiTest(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Ingredient.objects.filter(id=ingredient.id).exists())
+
+    def test_filtered_ingredients(self):
+        """Testing filtered ingredients list."""
+
+        ing1 = Ingredient.objects.create(user=self.user, name='Ing1')
+        ing2 = Ingredient.objects.create(user=self.user, name='Ing2')
+
+        recipe = create_sample_recipe(user=self.user, title='recipe1')
+        recipe.ingredients.add(ing1)
+
+        s1 = serializers.IngredientSerializer(ing1)
+        s2 = serializers.IngredientSerializer(ing2)
+
+        res = self.client.get(INGREDIENT_URL, dict(assigned_only=1))
+
+        self.assertIn(s1.data, res.data)
+        self.assertNotIn(s2.data, res.data)
+
+    def test_filtered_ingredients_unique(self):
+        """Testing the filtered ingredients are unique"""
+
+        ing1 = Ingredient.objects.create(user=self.user, name='Ing1')
+        Ingredient.objects.create(user=self.user, name='Ing2')
+
+        recipe1 = create_sample_recipe(user=self.user, title='recipe1')
+        recipe2 = create_sample_recipe(user=self.user, title='recipe2')
+        recipe1.ingredients.add(ing1)
+        recipe2.ingredients.add(ing1)
+
+        s1 = serializers.IngredientSerializer(ing1)
+
+        res = self.client.get(INGREDIENT_URL, dict(assigned_only=1))
+
+        self.assertEqual(len(res.data), 1)
+        self.assertIn(s1.data, res.data)

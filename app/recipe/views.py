@@ -26,7 +26,7 @@ from drf_spectacular.utils import (
             OpenApiParameter(
                 'ingredients',
                 OpenApiTypes.STR,
-                description='Commad separated list of IDs to filter'
+                description='Comma separated list of IDs to filter'
             )
         ]
     )
@@ -88,6 +88,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        parameters=[
+            OpenApiParameter(
+                'assigned_only',
+                OpenApiTypes.INT, enum=[0, 1],
+                description='Filter by item assigned to recipe.'
+            ),
+        ]
+    )
+)
 class BaseRecipeAttrViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.ListModelMixin,
                             mixins.DestroyModelMixin):
     """Base view set for Recipe attribute viewsets"""
@@ -95,8 +106,19 @@ class BaseRecipeAttrViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mi
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    def _params_to_ints(self, qs):
+        """Convert comma separated values to list of int"""
+
+        return [int(str_id) for str_id in qs.split(',')]
+
     def get_queryset(self):
-        return self.queryset.filter(user=self.request.user).order_by('-name')
+        assigned_only = int(
+            self.request.query_params.get('assigned_only', '0'))
+        query_set = self.queryset
+        if assigned_only:
+            query_set = query_set.filter(recipe__isnull=False)
+
+        return query_set.filter(user=self.request.user).order_by('-name').distinct()
 
 
 class TagViewSet(BaseRecipeAttrViewSet):
@@ -107,9 +129,6 @@ class TagViewSet(BaseRecipeAttrViewSet):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        return self.queryset.filter(user=self.request.user).order_by('-name')
-
 
 class IngredientViewSet(BaseRecipeAttrViewSet):
     """View for managing ingredient APIs"""
@@ -118,6 +137,3 @@ class IngredientViewSet(BaseRecipeAttrViewSet):
     queryset = Ingredient.objects.all()
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return self.queryset.filter(user=self.request.user).order_by('-name')
