@@ -7,7 +7,30 @@ from rest_framework.decorators import action
 from core.models import Recipe, Tag, Ingredient
 from recipe import serializers
 
+from drf_spectacular.utils import (
+    extend_schema,
+    extend_schema_view,
+    OpenApiParameter,
+    OpenApiTypes
+)
 
+
+@extend_schema_view(
+    list=extend_schema(
+        parameters=[
+            OpenApiParameter(
+                'tags',
+                OpenApiTypes.STR,
+                description='Comma separated list of IDs to filter'
+            ),
+            OpenApiParameter(
+                'ingredients',
+                OpenApiTypes.STR,
+                description='Commad separated list of IDs to filter'
+            )
+        ]
+    )
+)
 class RecipeViewSet(viewsets.ModelViewSet):
     """View for managing recipe APIs."""
 
@@ -16,8 +39,27 @@ class RecipeViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    def _params_to_ints(self, qs):
+        """Convert comma separated values to list of int"""
+
+        return [int(str_id) for str_id in qs.split(',')]
+
     def get_queryset(self):
-        return self.queryset.filter(user=self.request.user).order_by('-id')
+        """Apply filters to query set based on query params"""
+
+        tags = self.request.query_params.get('tags')
+        ingredients = self.request.query_params.get('ingredients')
+        query_set = self.queryset
+
+        if tags:
+            tag_ids = self._params_to_ints(tags)
+            query_set = query_set.filter(tags__id__in=tag_ids)
+
+        if ingredients:
+            ingredient_ids = self._params_to_ints(ingredients)
+            query_set = query_set.filter(ingredients__id__in=ingredient_ids)
+
+        return query_set.filter(user=self.request.user).order_by('-id').distinct()
 
     def get_serializer_class(self):
         """Returns the serializer class for the request."""
